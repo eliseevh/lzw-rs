@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 
 pub fn encode<R: Read, W: Write>(input: &mut R, output: &mut W) -> std::io::Result<()> {
     let mut dictionary = Trie::new();
@@ -33,41 +33,88 @@ pub fn encode<R: Read, W: Write>(input: &mut R, output: &mut W) -> std::io::Resu
     Ok(())
 }
 
+pub fn decode<R: Read, W: Write>(input: &mut R, output: &mut W) -> std::io::Result<()> {
+    let mut dictionary = Trie::new();
+    let mut cur: Vec<u8> = Vec::new();
+    let mut buf: [u8; std::mem::size_of::<usize>()] = [0; std::mem::size_of::<usize>()];
+
+    loop {
+        if let Err(error) = input.read_exact(&mut buf[..]) {
+            match error.kind() {
+                ErrorKind::UnexpectedEof => break,
+                _ => return Err(error),
+            }
+        }
+
+        let next = usize::from_be_bytes(buf);
+
+        match dictionary.get_by_index(next) {
+            Some(string) => {
+                output.write_all(&string[..])?;
+
+                cur.push(string[0]);
+                dictionary.add(&cur[..]);
+                cur = string;
+            }
+            None => {
+                cur.push(cur[0]);
+                dictionary.add(&cur[..]);
+
+                output.write_all(&cur[..])?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 struct Trie {
-    tree: Vec<HashMap<u8, usize>>,
+    tree: Vec<(usize, u8, HashMap<u8, usize>)>,
 }
 
 impl Trie {
     fn new() -> Self {
         let mut tree = Vec::with_capacity(257);
-        tree.push(HashMap::with_capacity(256));
+        tree.push((0, 0, HashMap::with_capacity(256)));
 
         for byte in 0..=255 {
-            tree.push(HashMap::new());
-            tree[0].insert(byte, byte as usize + 1);
+            tree.push((0, byte, HashMap::new()));
+            tree[0].2.insert(byte, byte as usize + 1);
         }
 
         Self { tree }
     }
 
+    fn get_by_index(&self, index: usize) -> Option<Vec<u8>> {
+        let mut result = Vec::new();
+        let mut cur = index;
+        while cur != 0 {
+            let got = self.tree.get(cur)?;
+            result.push(got.1);
+            cur = got.0;
+        }
+        result.reverse();
+        Some(result)
+    }
+
     fn add(&mut self, bytes: &[u8]) {
         let mut cur = 0;
         for byte in bytes {
-            if !self.tree[cur].contains_key(byte) {
+            if !self.tree[cur].2.contains_key(byte) {
                 let len = self.tree.len();
-                self.tree[cur].insert(*byte, len);
-                self.tree.push(HashMap::new());
+                self.tree[cur].2.insert(*byte, len);
+                self.tree.push((cur, *byte, HashMap::new()));
             }
 
-            cur = self.tree[cur][byte];
+            cur = self.tree[cur].2[byte];
         }
     }
 
     fn get(&self, bytes: &[u8]) -> Option<usize> {
         let mut cur = 0;
         for byte in bytes {
-            cur = *self.tree[cur].get(byte)?;
+            cur = *self.tree[cur].2.get(byte)?;
         }
         Some(cur)
     }
@@ -80,6 +127,7 @@ impl Trie {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     mod trie {
         use super::*;
 
@@ -115,5 +163,15 @@ mod tests {
             trie.add(b"Hello");
             assert!(!trie.contains(b"hello"))
         }
+    }
+
+    #[test]
+    fn decoded_equal_to_data() {
+        let data: &mut &[u8] = &mut &b"Hello, world"[..];
+        let mut encoder_output = Vec::new();
+        assert!(encode(data, &mut encoder_output).is_ok());
+        let mut decoder_output = Vec::new();
+        assert!(decode(&mut &encoder_output[..], &mut decoder_output).is_ok());
+        assert_eq!(b"Hello, world", &decoder_output[..]);
     }
 }
