@@ -76,3 +76,44 @@ impl Trie {
         self.get(bytes).is_some()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    mod trie {
+        use super::*;
+
+        #[test]
+        fn trie_contains_one_char_strings() {
+            let trie = Trie::new();
+            for byte in 0..=255 {
+                let slice = &[byte][..];
+                assert!(trie.contains(slice));
+            }
+        }
+
+        #[test]
+        fn trie_contains_strings() {
+            let mut trie = Trie::new();
+            trie.add(b"Hello");
+            trie.add(b"World");
+            assert!(trie.contains(b"Hello"));
+            assert!(!trie.contains(b"HelloWorld"));
+        }
+
+        #[test]
+        fn trie_contains_prefix() {
+            let mut trie = Trie::new();
+            trie.add(b"Hello, world");
+            assert!(trie.contains(b"Hello"));
+            assert!(!trie.contains(b"world"));
+        }
+
+        #[test]
+        fn trie_case_sensitive() {
+            let mut trie = Trie::new();
+            trie.add(b"Hello");
+            assert!(!trie.contains(b"hello"))
+        }
+    }
+}
