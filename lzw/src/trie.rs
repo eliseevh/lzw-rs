@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+pub type Code = u16;
+const MAX_SIZE: usize = (2 as usize).pow(8 * std::mem::size_of::<Code>() as u32);
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Trie {
-    tree: Vec<(usize, Vec<u8>, HashMap<u8, usize>)>,
+    tree: Vec<(usize, Vec<u8>, HashMap<u8, Code>)>,
 }
 
 impl Trie {
@@ -12,39 +15,48 @@ impl Trie {
 
         for byte in 0..=255 {
             tree.push((0, vec![byte], HashMap::new()));
-            tree[0].2.insert(byte, byte as usize + 1);
+            tree[0].2.insert(byte, byte as Code + 1);
         }
 
         Self { tree }
     }
 
-    pub fn get_by_index(&self, index: usize) -> Option<Vec<u8>> {
-        Some(self.tree.get(index)?.1.clone())
+    pub fn get_by_index(&self, index: Code) -> Option<Vec<u8>> {
+        Some(self.tree.get(index as usize)?.1.clone())
     }
 
     pub fn add(&mut self, bytes: &[u8]) {
         let mut cur = 0;
         for byte in bytes {
-            self.add_byte(cur, *byte);
-
-            cur = self.tree[cur].2[byte];
+            if self.add_byte(cur as usize, *byte) {
+                cur = self.tree[cur as usize].2[byte];
+            } else {
+                break;
+            }
         }
     }
 
-    fn add_byte(&mut self, index: usize, byte: u8) {
+    fn add_byte(&mut self, index: usize, byte: u8) -> bool {
         if !self.tree[index].2.contains_key(&byte) {
             let len = self.tree.len();
-            self.tree[index].2.insert(byte, len);
-            let mut new = self.tree[index].1.clone();
-            new.push(byte);
-            self.tree.push((index, new, HashMap::new()));
+            if len < MAX_SIZE {
+                self.tree[index].2.insert(byte, len as Code);
+                let mut new = self.tree[index].1.clone();
+                new.push(byte);
+                self.tree.push((index, new, HashMap::new()));
+                true
+            } else {
+                false
+            }
+        } else {
+            true
         }
     }
 
-    fn get(&self, bytes: &[u8]) -> Option<usize> {
+    fn get(&self, bytes: &[u8]) -> Option<Code> {
         let mut cur = 0;
         for byte in bytes {
-            cur = *self.tree[cur].2.get(byte)?;
+            cur = *self.tree[cur as usize].2.get(byte)?;
         }
         Some(cur)
     }
@@ -57,7 +69,7 @@ impl Trie {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TrieWalker {
     trie: Trie,
-    index: usize,
+    index: Code,
 }
 
 impl TrieWalker {
@@ -68,19 +80,19 @@ impl TrieWalker {
         }
     }
 
-    pub fn add_byte(&mut self, byte: u8) -> Option<usize> {
-        if !self.trie.tree[self.index].2.contains_key(&byte) {
-            self.trie.add_byte(self.index, byte);
+    pub fn add_byte(&mut self, byte: u8) -> Option<Code> {
+        if !self.trie.tree[self.index as usize].2.contains_key(&byte) {
+            self.trie.add_byte(self.index as usize, byte);
             let index = self.index;
             self.index = self.trie.tree[0].2[&byte];
             Some(index)
         } else {
-            self.index = self.trie.tree[self.index].2[&byte];
+            self.index = self.trie.tree[self.index as usize].2[&byte];
             None
         }
     }
 
-    pub fn get_last(self) -> usize {
+    pub fn get_last(self) -> Code {
         self.index
     }
 }

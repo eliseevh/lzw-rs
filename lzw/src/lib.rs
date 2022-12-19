@@ -1,5 +1,6 @@
 mod trie;
 
+use crate::trie::Code;
 use std::io;
 use trie::{Trie, TrieWalker};
 
@@ -28,7 +29,7 @@ pub fn encode<R: io::Read, W: io::Write>(input: &mut R, output: &mut W) -> io::R
 pub fn decode<R: io::Read, W: io::Write>(input: &mut R, output: &mut W) -> io::Result<()> {
     let mut dictionary = Trie::new();
     let mut cur: Vec<u8> = Vec::new();
-    let mut buf: [u8; std::mem::size_of::<usize>()] = [0; std::mem::size_of::<usize>()];
+    let mut buf: [u8; std::mem::size_of::<Code>()] = [0; std::mem::size_of::<Code>()];
 
     loop {
         if let Err(error) = input.read_exact(&mut buf[..]) {
@@ -38,7 +39,7 @@ pub fn decode<R: io::Read, W: io::Write>(input: &mut R, output: &mut W) -> io::R
             }
         }
 
-        let next = usize::from_be_bytes(buf);
+        let next = Code::from_be_bytes(buf);
 
         match dictionary.get_by_index(next) {
             Some(string) => {
