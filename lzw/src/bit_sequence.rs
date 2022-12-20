@@ -1,6 +1,6 @@
 use std::io;
 
-const fn log_2(a: usize) -> usize {
+pub const fn log_2(a: usize) -> usize {
     let mut result = 0;
     let mut power = 1;
     while power < a {
@@ -12,21 +12,21 @@ const fn log_2(a: usize) -> usize {
 
 const BYTE_SIZE: usize = 8;
 
-type Element = u64;
+pub type Element = u64;
 const ELEMENT_SIZE: usize = std::mem::size_of::<Element>() * BYTE_SIZE;
 const LOG_ELEMENT_SIZE: usize = log_2(ELEMENT_SIZE);
 const ONES: Element = Element::MAX;
 
 pub struct BitSequence {
     data: Vec<u64>,
-    size: usize,
+    len: usize,
 }
 
 impl BitSequence {
     pub fn new() -> Self {
         Self {
             data: Vec::new(),
-            size: 0,
+            len: 0,
         }
     }
 
@@ -34,7 +34,7 @@ impl BitSequence {
         if number_size == 0 {
             return;
         }
-        let free_size = (ELEMENT_SIZE - (self.size % ELEMENT_SIZE)) % ELEMENT_SIZE;
+        let free_size = (ELEMENT_SIZE - (self.len % ELEMENT_SIZE)) % ELEMENT_SIZE;
         if free_size >= number_size {
             let last_idx = self.data.len() - 1;
 
@@ -43,11 +43,11 @@ impl BitSequence {
             let xor_mask = (number << (ELEMENT_SIZE - free_size)) ^ needed_part;
 
             self.data[last_idx] ^= xor_mask;
-            self.size += number_size;
+            self.len += number_size;
         } else {
             self.add_number(number, free_size);
             self.data.push(number >> free_size);
-            self.size += number_size - free_size;
+            self.len += number_size - free_size;
         }
     }
 
@@ -70,20 +70,36 @@ impl BitSequence {
     }
 
     pub fn dump_current<W: io::Write>(&mut self, writer: &mut W) -> io::Result<()> {
-        for i in 0..self.size / BYTE_SIZE {
+        for i in 0..self.len / BYTE_SIZE {
             writer.write_all(&[self.get_number(BYTE_SIZE, i * BYTE_SIZE) as u8])?;
         }
-        let mut new = BitSequence::new();
-        let left_size = self.size % BYTE_SIZE;
-        new.add_number(self.get_number(left_size, self.size - left_size), left_size);
-        *self = new;
+        self.cut(self.len / BYTE_SIZE * BYTE_SIZE);
         Ok(())
     }
 
     pub fn dump_end<W: io::Write>(mut self, writer: &mut W) -> io::Result<()> {
-        let empty_size = (BYTE_SIZE - self.size % BYTE_SIZE) % BYTE_SIZE;
+        let empty_size = (BYTE_SIZE - self.len % BYTE_SIZE) % BYTE_SIZE;
         self.add_number(0, empty_size);
         self.dump_current(writer)
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn cut(&mut self, position: usize) {
+        let mut new = BitSequence::new();
+        for i in position..self.len {
+            new.add_bit(self.get_bit(i));
+        }
+        *self = new
+    }
+
+    fn add_bit(&mut self, bit: bool) {
+        self.add_number(if bit { 1 } else { 0 }, 1);
+    }
+    fn get_bit(&self, position: usize) -> bool {
+        self.get_number(1, position) == 1
     }
 }
 
@@ -94,7 +110,7 @@ mod tests {
     #[test]
     fn empty_default() {
         let empty = BitSequence::new();
-        assert_eq!(empty.size, 0);
+        assert_eq!(empty.len, 0);
     }
 
     #[test]
@@ -110,7 +126,7 @@ mod tests {
             bit_sequence.add_number(*value, 16);
         }
 
-        assert_eq!(bit_sequence.size, 16 * 1000);
+        assert_eq!(bit_sequence.len, 16 * 1000);
         for i in 0..1000 {
             assert_eq!(bit_sequence.get_number(16, 16 * i), values[i]);
         }
@@ -136,7 +152,7 @@ mod tests {
         }
 
         assert_eq!(
-            bit_sequence.size,
+            bit_sequence.len,
             100 * 7 + (500 - 100) * 9 + (1000 - 500) * 30,
         );
         for i in 0..100 {
@@ -192,7 +208,7 @@ mod tests {
         assert!(bit_sequence.dump_current(&mut dump).is_ok());
 
         assert_eq!(dump.len(), (500 * 5) / 8);
-        assert_eq!(bit_sequence.size, (500 * 5) % 8);
+        assert_eq!(bit_sequence.len, (500 * 5) % 8);
         for value in dump {
             assert_eq!(value, 0b11111111);
         }

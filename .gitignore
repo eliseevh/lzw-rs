@@ -2,3 +2,5 @@
 /Cargo.lock
 .idea
 lzw-server.iml
+test_data/*.compress
+test_data/*.copy

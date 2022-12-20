@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-pub type Code = u16;
-const MAX_SIZE: usize = (2 as usize).pow(8 * std::mem::size_of::<Code>() as u32);
+const MAX_SIZE: usize = 64 * 1024 * 1024;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Trie {
-    tree: Vec<(usize, Vec<u8>, HashMap<u8, Code>)>,
+    tree: Vec<(usize, Vec<u8>, HashMap<u8, usize>)>,
 }
 
 impl Trie {
@@ -15,13 +14,13 @@ impl Trie {
 
         for byte in 0..=255 {
             tree.push((0, vec![byte], HashMap::new()));
-            tree[0].2.insert(byte, byte as Code + 1);
+            tree[0].2.insert(byte, byte as usize + 1);
         }
 
         Self { tree }
     }
 
-    pub fn get_by_index(&self, index: Code) -> Option<Vec<u8>> {
+    pub fn get_by_index(&self, index: usize) -> Option<Vec<u8>> {
         Some(self.tree.get(index as usize)?.1.clone())
     }
 
@@ -36,11 +35,15 @@ impl Trie {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.tree.len()
+    }
+
     fn add_byte(&mut self, index: usize, byte: u8) -> bool {
         if !self.tree[index].2.contains_key(&byte) {
             let len = self.tree.len();
             if len < MAX_SIZE {
-                self.tree[index].2.insert(byte, len as Code);
+                self.tree[index].2.insert(byte, len as usize);
                 let mut new = self.tree[index].1.clone();
                 new.push(byte);
                 self.tree.push((index, new, HashMap::new()));
@@ -53,7 +56,8 @@ impl Trie {
         }
     }
 
-    fn get(&self, bytes: &[u8]) -> Option<Code> {
+    #[cfg(test)]
+    fn get(&self, bytes: &[u8]) -> Option<usize> {
         let mut cur = 0;
         for byte in bytes {
             cur = *self.tree[cur as usize].2.get(byte)?;
@@ -61,6 +65,7 @@ impl Trie {
         Some(cur)
     }
 
+    #[cfg(test)]
     fn contains(&self, bytes: &[u8]) -> bool {
         self.get(bytes).is_some()
     }
@@ -69,7 +74,7 @@ impl Trie {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TrieWalker {
     trie: Trie,
-    index: Code,
+    index: usize,
 }
 
 impl TrieWalker {
@@ -80,7 +85,7 @@ impl TrieWalker {
         }
     }
 
-    pub fn add_byte(&mut self, byte: u8) -> Option<Code> {
+    pub fn add_byte(&mut self, byte: u8) -> Option<usize> {
         if !self.trie.tree[self.index as usize].2.contains_key(&byte) {
             self.trie.add_byte(self.index as usize, byte);
             let index = self.index;
@@ -92,8 +97,12 @@ impl TrieWalker {
         }
     }
 
-    pub fn get_last(self) -> Code {
+    pub fn get_last(self) -> usize {
         self.index
+    }
+
+    pub fn len(&self) -> usize {
+        self.trie.len()
     }
 }
 
@@ -102,7 +111,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn trie_contains_one_char_strings() {
+    fn contains_one_char_strings() {
         let trie = Trie::new();
         for byte in 0..=255 {
             let slice = &[byte][..];
@@ -111,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn trie_contains_strings() {
+    fn contains_strings() {
         let mut trie = Trie::new();
         trie.add(b"Hello");
         trie.add(b"World");
@@ -120,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn trie_contains_prefix() {
+    fn contains_prefix() {
         let mut trie = Trie::new();
         trie.add(b"Hello, world");
         assert!(trie.contains(b"Hello"));
@@ -128,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn trie_case_sensitive() {
+    fn case_sensitive() {
         let mut trie = Trie::new();
         trie.add(b"Hello");
         assert!(!trie.contains(b"hello"))
