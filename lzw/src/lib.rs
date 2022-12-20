@@ -1,8 +1,8 @@
+mod bit_sequence;
 mod trie;
 
-use crate::trie::Code;
 use std::io;
-use trie::{Trie, TrieWalker};
+use trie::{Code, Trie, TrieWalker};
 
 pub fn encode<R: io::Read, W: io::Write>(input: &mut R, output: &mut W) -> io::Result<()> {
     let mut dictionary = TrieWalker::new();
