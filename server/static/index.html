@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>LZW.rs</title>
+    </head>
+    <body>
+        <form action="/compress" method="post" enctype="multipart/form-data">
+            <div>
+                <label for="compress_file">Choose file to compress</label>
+                <input type="file" id="compress_file" name="file">
+            </div>
+            <div>
+                <button>Compress</button>
+            </div>
+        </form>
+        <form action="/decompress" method="post" enctype="multipart/form-data">
+            <div>
+                <label for="decompress_file">Choose a file to decompress</label>
+                <input type="file" id="decompress_file" name="file">
+            </div>
+            <div>
+                <button>Decompress</button>
+            </div>
+        </form>
+    </body>
+</html>

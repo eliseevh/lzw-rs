@@ -23,7 +23,6 @@ pub fn encode<R: io::Read, W: io::Write>(input: &mut R, output: &mut W) -> io::R
 
         for i in 0..read {
             if let Some(index) = dictionary.add_byte(buffer[i]) {
-                log::info!("Writing {}", index);
                 bit_sequence.add_number(index as Element - 1, log_2(dictionary.len() - 1));
                 if bit_sequence.len() > BIT_SEQUENCE_BUFFER_SIZE {
                     bit_sequence.dump_current(output)?;
