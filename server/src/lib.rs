@@ -27,15 +27,16 @@ pub async fn get_file_from_multipart_data(
         .await
         .map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
 
-    let file = &data.files.get("file").ok_or(io::Error::new(
-        io::ErrorKind::Other,
-        "No file named \"file\" in data",
-    ))?[0];
+    let file = &data
+        .files
+        .get("file")
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "No file named \"file\" in data"))?[0];
 
-    let out_file_path = name_gen(file.file_name.clone().ok_or(io::Error::new(
-        io::ErrorKind::Other,
-        "Unnamed uploaded file",
-    ))?);
+    let out_file_path = name_gen(
+        file.file_name
+            .clone()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Unnamed uploaded file"))?,
+    );
 
     fs::File::open(&file.path).map(|file| (file, out_file_path))
 }

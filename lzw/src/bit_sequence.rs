@@ -60,7 +60,7 @@ impl BitSequence {
 
         if taken_size >= number_size {
             (self.data[start_position >> LOG_ELEMENT_SIZE] >> (start_position % ELEMENT_SIZE))
-                & (ONES >> ELEMENT_SIZE - number_size)
+                & (ONES >> (ELEMENT_SIZE - number_size))
         } else {
             let lower = self.get_number(taken_size, start_position);
             let higher = self.get_number(number_size - taken_size, start_position + taken_size);
@@ -96,7 +96,7 @@ impl BitSequence {
     }
 
     fn add_bit(&mut self, bit: bool) {
-        self.add_number(if bit { 1 } else { 0 }, 1);
+        self.add_number(u64::from(bit), 1);
     }
     fn get_bit(&self, position: usize) -> bool {
         self.get_number(1, position) == 1
@@ -190,37 +190,32 @@ mod tests {
 
         assert_eq!(dump, values);
     }
+}
+#[test]
+fn dump_non_byte_divisible() {
+    let mut bit_sequence = BitSequence::new();
+    let values: Vec<u8> = std::iter::repeat(0b11111).take(500).collect(); // 0b11111, so bit sequence will be filled with ones
 
-    #[test]
-    fn dump_non_byte_divisible() {
-        let mut bit_sequence = BitSequence::new();
-        let mut values: Vec<u8> = Vec::new();
-
-        for _ in 0..500 {
-            values.push(0b11111); // 0b11111, so bit sequence will be filled with ones
-        }
-
-        for value in &values {
-            bit_sequence.add_number(*value as u64, 5);
-        }
-
-        let mut dump: Vec<u8> = Vec::new();
-        assert!(bit_sequence.dump_current(&mut dump).is_ok());
-
-        assert_eq!(dump.len(), (500 * 5) / 8);
-        assert_eq!(bit_sequence.len, (500 * 5) % 8);
-        for value in dump {
-            assert_eq!(value, 0b11111111);
-        }
-
-        // there are 4 ones in bit sequence, and we adding 9 more, so there are one byte + 5 ones
-        bit_sequence.add_number(0b1111_11111, 9);
-
-        let mut dump: Vec<u8> = Vec::new();
-        assert!(bit_sequence.dump_end(&mut dump).is_ok());
-
-        assert_eq!(dump.len(), 2);
-        assert_eq!(dump[0], 0b11111111);
-        assert_eq!(dump[1], 0b00011111);
+    for value in &values {
+        bit_sequence.add_number(*value as u64, 5);
     }
+
+    let mut dump: Vec<u8> = Vec::new();
+    assert!(bit_sequence.dump_current(&mut dump).is_ok());
+
+    assert_eq!(dump.len(), (500 * 5) / 8);
+    assert_eq!(bit_sequence.len, (500 * 5) % 8);
+    for value in dump {
+        assert_eq!(value, 0b11111111);
+    }
+
+    // there are 4 ones in bit sequence, and we adding 9 more, so there are one byte + 5 ones
+    bit_sequence.add_number(0b111111111, 9);
+
+    let mut dump: Vec<u8> = Vec::new();
+    assert!(bit_sequence.dump_end(&mut dump).is_ok());
+
+    assert_eq!(dump.len(), 2);
+    assert_eq!(dump[0], 0b11111111);
+    assert_eq!(dump[1], 0b00011111);
 }

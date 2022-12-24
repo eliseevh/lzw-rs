@@ -1,0 +1,27 @@
+body {
+    background-color: darkslategrey;
+    color: bisque;
+    font-family: Montserrat, sans-serif;
+    font-size: larger;
+}
+
+p {
+    text-align: center;
+    font-weight: bolder;
+}
+
+button {
+    font-size: large;
+}
+
+#forms {
+    margin-top: 30px;
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+}
+
+#forms form {
+    display: table-cell;
+    text-align:center;
+}

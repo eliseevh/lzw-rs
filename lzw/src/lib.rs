@@ -21,8 +21,8 @@ pub fn encode<R: io::Read, W: io::Write>(input: &mut R, output: &mut W) -> io::R
             break;
         }
 
-        for i in 0..read {
-            if let Some(index) = dictionary.add_byte(buffer[i]) {
+        for byte in &buffer[0..read] {
+            if let Some(index) = dictionary.add_byte(*byte) {
                 bit_sequence.add_number(index as Element - 1, log_2(dictionary.len() - 1));
                 if bit_sequence.len() > BIT_SEQUENCE_BUFFER_SIZE {
                     bit_sequence.dump_current(output)?;
@@ -67,7 +67,12 @@ pub fn decode<R: io::Read, W: io::Write>(input: &mut R, output: &mut W) -> io::R
                     cur = string;
                 }
                 None => {
-                    cur.push(cur[0]);
+                    cur.push(*cur.first().ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            "Input is not a file encoded by this encoder",
+                        )
+                    })?);
                     dictionary.add(&cur[..]);
 
                     output.write_all(&cur[..])?;

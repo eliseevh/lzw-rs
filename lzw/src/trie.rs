@@ -40,10 +40,10 @@ impl Trie {
     }
 
     fn add_byte(&mut self, index: usize, byte: u8) -> bool {
-        if !self.tree[index].2.contains_key(&byte) {
-            let len = self.tree.len();
+        let len = self.tree.len();
+        if let std::collections::hash_map::Entry::Vacant(e) = self.tree[index].2.entry(byte) {
             if len < MAX_SIZE {
-                self.tree[index].2.insert(byte, len as usize);
+                e.insert(len as usize);
                 let mut new = self.tree[index].1.clone();
                 new.push(byte);
                 self.tree.push((index, new, HashMap::new()));
